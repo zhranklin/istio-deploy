@@ -1,0 +1,67 @@
+
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: qz-yx-event
+  namespace: istio-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qz-yx-event
+  template:
+    metadata:
+      labels:
+        app: qz-yx-event
+    spec:
+      containers:
+      - name: main
+        imagePullPolicy: Always
+        image: hub.c.163.com/qingzhou/yx-sm-event:1
+        args:
+        - --kubeconfigFile=/etc/kubeconfig/kubeconfig
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+          requests:
+            cpu: 500m
+            memory: 500m
+        volumeMounts:
+        - name: kubeconfig
+          mountPath: /etc/kubeconfig
+      imagePullSecrets:
+      - name: "qingzhou-secret"
+      volumes:
+        - name: kubeconfig
+          configMap:
+            name: qz-yx-event
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qz-yx-event
+  namespace: istio-system
+data:
+  kubeconfig: |-
+    apiVersion: v1
+    clusters:
+    - cluster:
+        certificate-authority-data: {{K8S_CERT_AUTH}}
+        server: {{K8S_API_ADDRESS}}
+      name: kubernetes
+    contexts:
+    - context:
+        cluster: kubernetes
+        user: kubernetes-admin
+      name: kubernetes-admin@kubernetes
+    current-context: kubernetes-admin@kubernetes
+    kind: Config
+    preferences: {}
+    users:
+    - name: kubernetes-admin
+      user:
+        client-certificate-data: {{K8S_CERT}}
+        client-key-data: {{K8S_KEY}}
+
