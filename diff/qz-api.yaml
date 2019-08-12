@@ -1,0 +1,95 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: qz-api
+  name: qz-api
+  namespace: istio-system
+spec:
+  progressDeadlineSeconds: 2147483647
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: qz-api
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "true"
+      labels:
+        app: qz-api
+    spec:
+      imagePullSecrets:
+      - name: "qingzhou-secret"
+      containers:
+      - env:
+        - name: NCE_PORT
+          value: "9090"
+        - name: NCE_JAVA_OPTS
+          value: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 -Dk8sApiServer={{K8S_API_ADDRESS}} -DistioClientUrl=https://10.182.2.131:16443 -Dserver.port=9090 -DcertData={{K8S_CERT}} -DkeyData={{K8S_KEY}}
+        - name: NCE_XMS
+          value: 256m
+        image: hub.c.163.com/qingzhou/nsf-api-plane-server:develop-20190808-20190809-025318-42f852af
+        imagePullPolicy: IfNotPresent
+        name: tomcat
+        ports:
+        - containerPort: 9090
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+      - name: qingzhou-secret
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: qz-api
+  name: qz-api
+  namespace: istio-system
+spec:
+  externalTrafficPolicy: Cluster
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 9090
+  selector:
+    app: qz-api
+  sessionAffinity: None
+  type: NodePort
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: qz-api
+  namespace: istio-system
+spec:
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+  host: qz-api
+---
+apiVersion: "authentication.istio.io/v1alpha1"
+kind: "Policy"
+metadata:
+  name: qz-api
+  namespace: istio-system
+spec:
+  targets:
+  - name: qz-api
+  peers:
+  - mtls:
+      mode: STRICT
