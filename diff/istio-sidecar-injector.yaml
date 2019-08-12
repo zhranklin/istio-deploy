@@ -25,8 +25,11 @@ webhooks:
         resources: ["pods"]
     failurePolicy: Fail
     namespaceSelector:
-      matchLabels:
-        istio-injection: enabled
+      matchExpressions:
+      - key: istio-injection
+        operator: NotIn
+        values:
+        - disabled
 
 
 ---
@@ -45,7 +48,7 @@ metadata:
     istio: sidecar-injector
 data:
   config: |-
-    policy: enabled
+    policy: disabled
     template: |-
       rewriteAppHTTPProbe: false
       initContainers:
